@@ -29,7 +29,7 @@ try:
     _HAS_LIBROSA = True
 except Exception:
     _HAS_LIBROSA = False
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 import edge_tts
 from fpdf import FPDF  
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -355,7 +355,6 @@ def init_db():
 init_db()
 print("🔹 Loading Faster-Whisper model (tiny, int8) ...")
 fw_model = WhisperModel("tiny", device="cpu", compute_type="int8")
-translator = Translator()
 quiz_generator = AIQuizGenerator()
 SUPPORTED_LANGS = {
     "Hindi": "hi", "Tamil": "ta", "Telugu": "te", "Malayalam": "ml",
@@ -369,8 +368,7 @@ SUPPORTED_LANGS = {
 def translate_text(text: str, dest_lang_name: str) -> str:
     """
     Translates text to a target language.
-    Primary: deep-translator (GoogleTranslator)
-    Secondary: googletrans (as fallback)
+    Uses deep-translator (GoogleTranslator).
     """
     if not text or not text.strip():
         return ""
@@ -392,13 +390,10 @@ def translate_text(text: str, dest_lang_name: str) -> str:
                 
     if lang_code == "zh-CN":
         deep_target = "zh-CN"
-        google_target = "zh-cn"
     elif lang_code == "zh-TW":
         deep_target = "zh-TW"
-        google_target = "zh-tw"
     else:
         deep_target = lang_code
-        google_target = lang_code
 
     def is_translation_valid(original: str, translated: str, target_lang_code: str) -> bool:
         if not translated or not translated.strip():
@@ -443,9 +438,7 @@ def translate_text(text: str, dest_lang_name: str) -> str:
         if current_chunk:
             chunks.append(" ".join(current_chunk))
 
-    # 1. Try deep-translator first
     try:
-        from deep_translator import GoogleTranslator
         print(f"🌐 Translating via deep-translator to {dest_lang_name} ({deep_target})...")
         translator_obj = GoogleTranslator(source='auto', target=deep_target)
         
@@ -476,42 +469,7 @@ def translate_text(text: str, dest_lang_name: str) -> str:
             print("✅ deep-translator Translation succeeded.")
             return result.strip()
     except Exception as e:
-        print(f"⚠️ deep-translator translation failed: {e}. Trying fallback...")
-
-    # 2. Try googletrans as fallback
-    try:
-        from googletrans import Translator
-        print(f"🌐 Translating via googletrans to {dest_lang_name} ({google_target})...")
-        local_translator = Translator()
-        
-        translated_chunks = []
-        import time
-        for chunk in chunks:
-            if not chunk.strip():
-                continue
-            translated_chunk = None
-            for attempt in range(3):
-                try:
-                    res = local_translator.translate(chunk, dest=google_target)
-                    if res and res.text and is_translation_valid(chunk, res.text, google_target):
-                        translated_chunk = res.text
-                        break
-                    else:
-                        print(f"⚠️ googletrans chunk attempt {attempt+1} got invalid/untranslated output.")
-                except Exception as ex:
-                    print(f"⚠️ googletrans chunk attempt {attempt+1} failed: {ex}")
-                if attempt < 2:
-                    time.sleep(1)
-            if not translated_chunk:
-                raise Exception("Failed to get valid translation from googletrans")
-            translated_chunks.append(translated_chunk)
-            
-        result = " ".join(translated_chunks)
-        if result and result.strip():
-            print("✅ googletrans Translation succeeded.")
-            return result.strip()
-    except Exception as e:
-        print(f"❌ googletrans translation failed: {e}")
+        print(f"❌ deep-translator translation failed: {e}")
         
     raise Exception(f"Translation failed for {dest_lang_name}. Please try again later.")
 FEMALE_VOICE_BY_LANG = {

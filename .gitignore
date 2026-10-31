@@ -1,6 +1,7 @@
 # Ignore local database and logs
 *.db
 *.txt
+!requirements.txt
 *.log
 
 # Ignore local environment variables/secrets
